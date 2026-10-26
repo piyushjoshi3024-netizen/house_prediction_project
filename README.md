@@ -52,3 +52,30 @@ http://127.0.0.1:8000/docs
 The generated `.pkl` files are kept locally and excluded from Git. Run `python train.py` to regenerate them.
 
 > The model uses the California Housing dataset and estimates median house value for a geographic block group. It is a project/demo estimate, not a live appraisal of an individual property.
+
+
+Current Progress
+Explored the California Housing dataset.
+Trained a RandomForestRegressor.
+Evaluated model performance using MAE and R².
+Saved the trained model and feature metadata using Joblib.
+Building the FastAPI integration for serving predictions.
+Backend Development Roadmap
+
+Implement the POST /predict endpoint.
+
+Add request validation and error handling.
+
+Organize routes, schemas, and prediction services.
+
+Add automated API tests using Pytest.
+
+Implement logging and configuration management.
+
+Add prediction history and PostgreSQL integration.
+
+Containerize the application with Docker.
+
+Set up CI/CD and deploy the API.
+
+Run Locally
