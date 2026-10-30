@@ -1,8 +1,12 @@
 import joblib
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel, Field
 import logging
+from sqlalchemy.orm import Session
+
+from database import get_db
+from models import Prediction
 
 logging.basicConfig(
     level=logging.INFO,
@@ -67,32 +71,78 @@ def health_check():
             "avg error": "$39000"
             }
     
-    
 @app.post("/predict")
-def predict_price(features: HouseFeatures):
-    """Predict the price of a house based on its features."""
-    logger.info("Received request for prediction.")
+def predict_price(
+    features: HouseFeatures,
+    db: Session = Depends(get_db)
+):
     try:
+        logger.info("Prediction request received")
+
         input_data = pd.DataFrame([features.model_dump()])
-
         prediction = model.predict(input_data)
-        predicted_price = prediction[0] * 100000  # Convert to dollars
 
-        logger.info(f"Prediction successful: {predicted_price}")
+        predicted_price = prediction[0] * 100000
+
+        new_prediction = Prediction(
+            MedInc=features.MedInc,
+            HouseAge=features.HouseAge,
+            AveRooms=features.AveRooms,
+            AveBedrms=features.AveBedrms,
+            Population=features.Population,
+            AveOccup=features.AveOccup,
+            Latitude=features.Latitude,
+            Longitude=features.Longitude,
+            predicted_price=float(predicted_price)
+        )
+
+        db.add(new_prediction)
+        db.commit()
+        db.refresh(new_prediction)
+
+        logger.info("Prediction saved to database")
 
         return {
             "predicted_price": f"${predicted_price:,.2f}",
+            "prediction_id": new_prediction.id,
             "status_code": 200,
             "status": "Prediction successful",
-            "message": "The predicted price is the median house value in the specified area.",
             "input_features": features.model_dump()
         }
+    
 
     except Exception as e:
+        db.rollback()
         logger.error(f"Prediction failed: {str(e)}")
-    raise HTTPException(
-        status_code=500, 
-        detail=f"Prediction failed: {str(e)}"
+
+        raise HTTPException(
+            status_code=500,
+            detail="Prediction failed"
         )
- 
-       
+        
+        
+@app.get("/predictions")
+def get_predictions(db: Session = Depends(get_db)):
+    predictions = db.query(Prediction).all()
+
+    return {
+        "status": "success",
+        "count": len(predictions),
+        "predictions": [
+            {
+                "id": prediction.id,
+                "MedInc": prediction.MedInc,
+                "HouseAge": prediction.HouseAge,
+                "AveRooms": prediction.AveRooms,
+                "AveBedrms": prediction.AveBedrms,
+                "Population": prediction.Population,
+                "AveOccup": prediction.AveOccup,
+                "Latitude": prediction.Latitude,
+                "Longitude": prediction.Longitude,
+                "predicted_price": prediction.predicted_price,
+                "created_at": prediction.created_at
+            }
+            for prediction in predictions
+        ]
+    }
+        
