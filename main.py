@@ -12,9 +12,13 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+
 logger = logging.getLogger(__name__)
 
-
+app = FastAPI(
+    title = " california house prediction API",
+    version = "1.0",
+)
 
 model = joblib.load("california_housing_model.pkl")
 model_columns = joblib.load("C:\\Users\\Piyus\\OneDrive\\Documents\\fast_api_proj-2\\model_columns.pkl")
@@ -82,6 +86,8 @@ def predict_price(
         logger.info("Prediction request received")
 
         input_data = pd.DataFrame([features.model_dump()])
+        input_data = input_data[model_columns]
+        
         prediction = model.predict(input_data)
 
         predicted_price = prediction[0] * 100000
@@ -102,7 +108,10 @@ def predict_price(
         db.commit()
         db.refresh(new_prediction)
 
-        logger.info("Prediction saved to database")
+        logger.info(
+            f"Prediction saved to database. ",
+            f"prediction_id = {new_prediction.id}"
+            )
 
         return {
             "predicted_price": f"${predicted_price:,.2f}",
@@ -115,7 +124,7 @@ def predict_price(
 
     except Exception as e:
         db.rollback()
-        logger.error(f"Prediction failed: {str(e)}")
+        logger.exception("Prediction failed")
 
         raise HTTPException(
             status_code=500,
@@ -190,23 +199,42 @@ def delete_prediction(
     prediction_id: int,
     db: Session = Depends(get_db)
 ):
-    prediction = (
-        db.query(Prediction)
-        .filter(Prediction.id == prediction_id)
-        .first()
-    )
-
-    if prediction is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Prediction not found"
+    try:
+        prediction = (
+            db.query(Prediction)
+            .filter(Prediction.id == prediction_id)
+            .first()
         )
 
-    db.delete(prediction)
-    db.commit()
+        if prediction is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Prediction not found"
+            )
 
-    return {
-        "status": "success",
-        "message": "Prediction deleted successfully",
-        "prediction_id": prediction_id
-    }
+        db.delete(prediction)
+        db.commit()
+
+        return {
+            "status": "success",
+            "message": "Prediction deleted successfully",
+            "prediction_id": prediction_id
+        }
+
+    except HTTPException:
+        raise
+    
+    except Exception:
+        db.rollback()
+
+        logger.exception(
+            f"Failed to delete prediction. "
+            f"prediction_id={prediction_id}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to delete prediction. Please try again later."
+        )
+        
+    
