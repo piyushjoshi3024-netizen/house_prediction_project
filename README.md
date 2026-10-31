@@ -212,24 +212,14 @@ The stored data includes:
 
 Database configuration is loaded through the `.env` file.
 
-Example:
-
-```env
-DATABASE_URL=postgresql+psycopg://postgres:YOUR_PASSWORD@localhost:5432/house_prediction_db
-```
-
-> Never commit `.env` or database credentials to GitHub.
-
 ---
 
 ## 🧪 Testing
 
 Automated API tests are implemented using:
 
-```text
 Pytest
 FastAPI TestClient
-```
 
 Run:
 
