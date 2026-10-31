@@ -71,6 +71,8 @@ def health_check():
             "avg error": "$39000"
             }
     
+    
+    
 @app.post("/predict")
 def predict_price(
     features: HouseFeatures,
@@ -144,5 +146,67 @@ def get_predictions(db: Session = Depends(get_db)):
             }
             for prediction in predictions
         ]
-    }
+    }      
+
+
         
+@app.get("/predictions/{prediction_id}")
+def get_prediction(
+    prediction_id: int,
+    db: Session = Depends(get_db)
+):
+    prediction = (
+        db.query(Prediction)
+        .filter(Prediction.id == prediction_id)
+        .first()
+    )
+
+    if prediction is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Prediction not found"
+        )
+
+    return {
+        "status": "success",
+        "prediction": {
+            "id": prediction.id,
+            "MedInc": prediction.MedInc,
+            "HouseAge": prediction.HouseAge,
+            "AveRooms": prediction.AveRooms,
+            "AveBedrms": prediction.AveBedrms,
+            "Population": prediction.Population,
+            "AveOccup": prediction.AveOccup,
+            "Latitude": prediction.Latitude,
+            "Longitude": prediction.Longitude,
+            "predicted_price": prediction.predicted_price,
+            "created_at": prediction.created_at
+        }
+    }
+
+
+@app.delete("/predictions/{prediction_id}")
+def delete_prediction(
+    prediction_id: int,
+    db: Session = Depends(get_db)
+):
+    prediction = (
+        db.query(Prediction)
+        .filter(Prediction.id == prediction_id)
+        .first()
+    )
+
+    if prediction is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Prediction not found"
+        )
+
+    db.delete(prediction)
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": "Prediction deleted successfully",
+        "prediction_id": prediction_id
+    }
